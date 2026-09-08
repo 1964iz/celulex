@@ -1,0 +1,6 @@
+{
+  "name": "Sistema de Vendas de Celulares",
+  "description": "Sistema completo de vendas de celulares com controle de estoque, gestão de clientes e emissão de recibos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
