@@ -94,6 +94,9 @@ export interface StoreSettings {
   city: string;
   state: string;
   warranty_days: number;
+  tech_manager?: string;
+  tech_phone?: string;
+  tech_email?: string;
 }
 
 export interface DashboardStats {

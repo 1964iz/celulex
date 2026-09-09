@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Building2, Save, CheckCircle2 } from 'lucide-react';
+import { X, Building2, Save, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { StoreSettings } from '../types';
 
 interface SettingsModalProps {
@@ -24,6 +24,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     city: '',
     state: 'SP',
     warranty_days: '90',
+    tech_manager: 'W2 Suporte Técnico',
+    tech_phone: '(16) 99965-4150',
+    tech_email: 'w2suporte@gmail.com',
   });
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -33,12 +36,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setFormData({
         store_name: settings.store_name || '',
         cnpj: settings.cnpj || '',
-        phone: settings.phone || '',
-        email: settings.email || '',
+        phone: settings.phone || '(16) 99965-4150',
+        email: settings.email || 'w2suporte@gmail.com',
         address: settings.address || '',
         city: settings.city || '',
         state: settings.state || 'SP',
         warranty_days: String(settings.warranty_days || 90),
+        tech_manager: settings.tech_manager || 'W2 Suporte Técnico',
+        tech_phone: settings.tech_phone || '(16) 99965-4150',
+        tech_email: settings.tech_email || 'w2suporte@gmail.com',
       });
     }
   }, [settings]);
@@ -57,6 +63,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       city: formData.city.trim(),
       state: formData.state.trim().toUpperCase(),
       warranty_days: parseInt(formData.warranty_days, 10) || 90,
+      tech_manager: formData.tech_manager.trim(),
+      tech_phone: formData.tech_phone.trim(),
+      tech_email: formData.tech_email.trim(),
     });
     setIsSaving(false);
     if (success) {
@@ -199,6 +208,62 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <span className="text-[11px] text-slate-400 mt-0.5 block">
               Padrão legal CDC para bens duráveis é de 90 dias.
             </span>
+          </div>
+
+          {/* Responsável Técnico Section */}
+          <div className="pt-4 border-t border-slate-100">
+            <div className="flex items-center gap-2 mb-3">
+              <ShieldCheck className="w-4 h-4 text-blue-600" />
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                Responsável Técnico & Suporte
+              </h4>
+            </div>
+
+            <div className="space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nome do Responsável Técnico
+                </label>
+                <input
+                  type="text"
+                  value={formData.tech_manager}
+                  onChange={(e) => setFormData({ ...formData, tech_manager: e.target.value })}
+                  placeholder="Ex: W2 Suporte Técnico"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Telefone / WhatsApp Técnico
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.tech_phone}
+                    onChange={(e) => setFormData({ ...formData, tech_phone: e.target.value })}
+                    placeholder="(16) 99965-4150"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    E-mail do Responsável Técnico
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.tech_email}
+                    onChange={(e) => setFormData({ ...formData, tech_email: e.target.value })}
+                    placeholder="w2suporte@gmail.com"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Essas informações identificam o responsável técnico no sistema, recibos e cabeçalho.
+              </p>
+            </div>
           </div>
 
           <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">

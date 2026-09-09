@@ -9,7 +9,11 @@ import {
   HelpCircle,
   PlusCircle,
   Database,
+  ShieldCheck,
+  Phone,
+  Mail,
 } from 'lucide-react';
+import { StoreSettings } from '../types';
 
 interface NavbarProps {
   activeTab: 'dashboard' | 'devices' | 'clients' | 'new-sale' | 'sales';
@@ -17,6 +21,8 @@ interface NavbarProps {
   onOpenSettings: () => void;
   onOpenHelp: () => void;
   lowStockCount: number;
+  storeSettings?: StoreSettings | null;
+  onRepairDatabase?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -25,6 +31,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSettings,
   onOpenHelp,
   lowStockCount,
+  storeSettings,
+  onRepairDatabase,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-xs no-print">
@@ -109,6 +117,28 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Quick Action & Utility Buttons */}
           <div className="flex items-center gap-2">
+            {/* Responsável Técnico Badge */}
+            <div className="hidden xl:flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
+                <span className="text-slate-500">Resp. Técnico:</span>
+                <span className="font-semibold text-slate-800">
+                  {storeSettings?.tech_manager || 'W2 Suporte Técnico'}
+                </span>
+                <span className="text-slate-300">•</span>
+                <a
+                  href={`https://wa.me/55${(storeSettings?.tech_phone || '16999654150').replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-emerald-700 hover:text-emerald-800 flex items-center gap-0.5"
+                  title="WhatsApp do Suporte"
+                >
+                  <Phone className="w-3 h-3" />
+                  {storeSettings?.tech_phone || '(16) 99965-4150'}
+                </a>
+              </div>
+            </div>
+
             <button
               id="btn-quick-new-sale"
               onClick={() => setActiveTab('new-sale')}

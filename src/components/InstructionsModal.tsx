@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Terminal, Database, ShieldCheck, CheckCircle2, Server, Smartphone, BookOpen } from 'lucide-react';
+import { X, Terminal, Database, ShieldCheck, CheckCircle2, Server, Smartphone, BookOpen, Phone, Mail } from 'lucide-react';
 
 interface InstructionsModalProps {
   isOpen: boolean;
@@ -25,6 +25,37 @@ export const InstructionsModal: React.FC<InstructionsModalProps> = ({
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Technical Responsible Highlight Card */}
+        <div className="p-4 bg-blue-50/80 rounded-xl border border-blue-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-blue-900 text-sm">
+              <ShieldCheck className="w-4 h-4 text-blue-600" />
+              <span>Responsável Técnico do Sistema</span>
+            </div>
+            <p className="text-slate-700">
+              <strong>W2 Suporte Técnico</strong> — Manutenção, banco de dados e suporte operacional.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href="https://wa.me/5516999654150?text=Olá,%20preciso%20de%20suporte%20no%20sistema%20CellVendas"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-xs transition-colors"
+            >
+              <Phone className="w-3.5 h-3.5" />
+              (16) 99965-4150
+            </a>
+            <a
+              href="mailto:w2suporte@gmail.com"
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-medium transition-colors"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              w2suporte@gmail.com
+            </a>
+          </div>
         </div>
 
         {/* Stack & Architecture */}

@@ -28,6 +28,7 @@ export default function App() {
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
 
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Modals & Selected items
   const [activeReceiptSale, setActiveReceiptSale] = useState<Sale | null>(null);
@@ -46,11 +47,13 @@ export default function App() {
     }, 3500);
   };
 
-  // Load all initial data
+  // Load all initial data with resilient Promise.allSettled
   const loadAllData = useCallback(async () => {
     try {
       setLoading(true);
-      const [dashRes, devRes, clientRes, saleRes, movRes, settRes] = await Promise.all([
+      setLoadError(null);
+
+      const [dashRes, devRes, clientRes, saleRes, movRes, settRes] = await Promise.allSettled([
         fetch('/api/dashboard'),
         fetch('/api/devices'),
         fetch('/api/clients'),
@@ -59,19 +62,53 @@ export default function App() {
         fetch('/api/settings'),
       ]);
 
-      if (dashRes.ok) setStats(await dashRes.json());
-      if (devRes.ok) setDevices(await devRes.json());
-      if (clientRes.ok) setClients(await clientRes.json());
-      if (saleRes.ok) setSales(await saleRes.json());
-      if (movRes.ok) setMovements(await movRes.json());
-      if (settRes.ok) setStoreSettings(await settRes.json());
-    } catch (err) {
+      if (dashRes.status === 'fulfilled' && dashRes.value.ok) {
+        const dashData = await dashRes.value.json();
+        setStats(dashData);
+      } else {
+        console.warn('Dashboard fetch issue, creating fallback stats');
+      }
+
+      if (devRes.status === 'fulfilled' && devRes.value.ok) {
+        setDevices(await devRes.value.json());
+      }
+      if (clientRes.status === 'fulfilled' && clientRes.value.ok) {
+        setClients(await clientRes.value.json());
+      }
+      if (saleRes.status === 'fulfilled' && saleRes.value.ok) {
+        setSales(await saleRes.value.json());
+      }
+      if (movRes.status === 'fulfilled' && movRes.value.ok) {
+        setMovements(await movRes.value.json());
+      }
+      if (settRes.status === 'fulfilled' && settRes.value.ok) {
+        setStoreSettings(await settRes.value.json());
+      }
+    } catch (err: any) {
       console.error('Failed to load system data:', err);
+      setLoadError('Falha ao comunicar com o servidor da aplicação: ' + (err.message || ''));
       showToast('Falha ao comunicar com o servidor da aplicação.', 'error');
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Database self-healing and repair handler
+  const handleRepairDatabase = async () => {
+    try {
+      showToast('Verificando e sincronizando banco de dados...', 'success');
+      const res = await fetch('/api/database/repair', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Banco de dados reparado com sucesso!', 'success');
+        await loadAllData();
+      } else {
+        showToast(data.message || 'Erro ao reparar banco.', 'error');
+      }
+    } catch (err: any) {
+      showToast('Erro ao acionar reparo: ' + err.message, 'error');
+    }
+  };
 
   useEffect(() => {
     loadAllData();
@@ -281,6 +318,8 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenHelp={() => setIsHelpOpen(true)}
         lowStockCount={stats?.lowStockCount || 0}
+        storeSettings={storeSettings}
+        onRepairDatabase={handleRepairDatabase}
       />
 
       {/* Main Content Area */}
@@ -295,6 +334,10 @@ export default function App() {
               setSelectedDeviceForMovement(device);
               setActiveTab('devices');
             }}
+            storeSettings={storeSettings}
+            onRefresh={loadAllData}
+            onRepairDatabase={handleRepairDatabase}
+            loadError={loadError}
           />
         )}
 
@@ -343,11 +386,31 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-4 px-6 text-center text-xs text-slate-500 no-print mt-auto">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p>
-            CellVendas © {new Date().getFullYear()} — Sistema de Gestão de Vendas & Estoque de Aparelhos Celulares
-          </p>
+      <footer className="bg-white border-t border-slate-200 py-4 px-6 text-xs text-slate-500 no-print mt-auto">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-center md:text-left">
+          <div className="space-y-0.5">
+            <p className="font-semibold text-slate-800">
+              CellVendas © {new Date().getFullYear()} — Sistema de Gestão de Vendas & Estoque de Celulares
+            </p>
+            <p className="text-[11px] text-slate-500">
+              Responsável Técnico: <strong className="text-slate-700">{storeSettings?.tech_manager || 'W2 Suporte Técnico'}</strong> • Tel/WhatsApp:{' '}
+              <a
+                href={`https://wa.me/55${(storeSettings?.tech_phone || '16999654150').replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-emerald-700 font-bold hover:underline"
+              >
+                {storeSettings?.tech_phone || '(16) 99965-4150'}
+              </a>{' '}
+              • E-mail:{' '}
+              <a
+                href={`mailto:${storeSettings?.tech_email || 'w2suporte@gmail.com'}`}
+                className="text-blue-600 hover:underline"
+              >
+                {storeSettings?.tech_email || 'w2suporte@gmail.com'}
+              </a>
+            </p>
+          </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsHelpOpen(true)}

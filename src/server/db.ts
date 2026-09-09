@@ -18,16 +18,30 @@ export async function getDb(): Promise<Database> {
   const SQL = await initSqlJs();
 
   if (fs.existsSync(DB_FILE)) {
-    const fileBuffer = fs.readFileSync(DB_FILE);
-    dbInstance = new SQL.Database(fileBuffer);
+    try {
+      const fileBuffer = fs.readFileSync(DB_FILE);
+      if (fileBuffer.length > 0) {
+        dbInstance = new SQL.Database(fileBuffer);
+      } else {
+        console.warn('DB file is empty (0 bytes). Creating fresh SQLite instance.');
+        dbInstance = new SQL.Database();
+      }
+    } catch (readErr) {
+      console.error('Failed to read existing SQLite file, creating fresh database:', readErr);
+      dbInstance = new SQL.Database();
+    }
   } else {
     dbInstance = new SQL.Database();
   }
 
   // Enforce foreign keys and initialize tables
-  dbInstance.run('PRAGMA foreign_keys = ON;');
-  initTables(dbInstance);
-  saveDb();
+  try {
+    dbInstance.run('PRAGMA foreign_keys = ON;');
+    initTables(dbInstance);
+    saveDb();
+  } catch (initErr) {
+    console.error('Error during initTables execution:', initErr);
+  }
 
   return dbInstance;
 }
@@ -40,6 +54,20 @@ export function saveDb(): void {
     fs.writeFileSync(DB_FILE, buffer);
   } catch (err) {
     console.error('Error persisting database to disk:', err);
+  }
+}
+
+export async function resetOrRepairDb(): Promise<{ success: boolean; message: string }> {
+  try {
+    const SQL = await initSqlJs();
+    dbInstance = new SQL.Database();
+    dbInstance.run('PRAGMA foreign_keys = ON;');
+    initTables(dbInstance);
+    saveDb();
+    return { success: true, message: 'Banco de dados restaurado e reparado com sucesso.' };
+  } catch (err: any) {
+    console.error('Error resetting database:', err);
+    return { success: false, message: 'Erro ao reparar banco de dados: ' + err.message };
   }
 }
 
@@ -148,17 +176,36 @@ function initTables(db: Database): void {
       address TEXT NOT NULL,
       city TEXT NOT NULL,
       state TEXT NOT NULL,
-      warranty_days INTEGER NOT NULL DEFAULT 90
+      warranty_days INTEGER NOT NULL DEFAULT 90,
+      tech_manager TEXT,
+      tech_phone TEXT,
+      tech_email TEXT
     );
   `);
 
-  // Seed store settings if empty
+  // Migrate any existing store_settings table lacking technical manager fields
+  try { db.run('ALTER TABLE store_settings ADD COLUMN tech_manager TEXT;'); } catch (_) {}
+  try { db.run('ALTER TABLE store_settings ADD COLUMN tech_phone TEXT;'); } catch (_) {}
+  try { db.run('ALTER TABLE store_settings ADD COLUMN tech_email TEXT;'); } catch (_) {}
+
+  // Seed or update store settings with technical manager contact information
   const settingsRes = db.exec('SELECT COUNT(*) as count FROM store_settings;');
   const settingsCount = settingsRes[0]?.values[0]?.[0] as number;
   if (!settingsCount) {
     db.run(`
-      INSERT INTO store_settings (id, store_name, cnpj, phone, email, address, city, state, warranty_days)
-      VALUES (1, 'CellStore Vendas & Assistência', '34.567.890/0001-12', '(11) 98765-4321', 'contato@cellstore.com.br', 'Rua das Palmeiras, 350 - Centro', 'São Paulo', 'SP', 90);
+      INSERT INTO store_settings (id, store_name, cnpj, phone, email, address, city, state, warranty_days, tech_manager, tech_phone, tech_email)
+      VALUES (1, 'CellStore Vendas & Assistência', '34.567.890/0001-12', '(16) 99965-4150', 'w2suporte@gmail.com', 'Rua das Palmeiras, 350 - Centro', 'São Paulo', 'SP', 90, 'W2 Suporte Técnico', '(16) 99965-4150', 'w2suporte@gmail.com');
+    `);
+  } else {
+    // Update existing row with user's technical manager details and phone/email
+    db.run(`
+      UPDATE store_settings
+      SET tech_manager = COALESCE(NULLIF(tech_manager, ''), 'W2 Suporte Técnico'),
+          tech_phone = COALESCE(NULLIF(tech_phone, ''), '(16) 99965-4150'),
+          tech_email = COALESCE(NULLIF(tech_email, ''), 'w2suporte@gmail.com'),
+          phone = CASE WHEN phone = '(11) 98765-4321' THEN '(16) 99965-4150' ELSE phone END,
+          email = CASE WHEN email = 'contato@cellstore.com.br' THEN 'w2suporte@gmail.com' ELSE email END
+      WHERE id = 1;
     `);
   }
 

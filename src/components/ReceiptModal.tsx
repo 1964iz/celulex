@@ -33,12 +33,15 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     id: 1,
     store_name: 'CellStore Vendas & Assistência',
     cnpj: '34.567.890/0001-12',
-    phone: '(11) 98765-4321',
-    email: 'contato@cellstore.com.br',
+    phone: '(16) 99965-4150',
+    email: 'w2suporte@gmail.com',
     address: 'Rua das Palmeiras, 350 - Centro',
     city: 'São Paulo',
     state: 'SP',
     warranty_days: 90,
+    tech_manager: 'W2 Suporte Técnico',
+    tech_phone: '(16) 99965-4150',
+    tech_email: 'w2suporte@gmail.com',
   };
 
   const handlePrint = () => {
@@ -50,6 +53,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
 *${defaultStore.store_name}*
 CNPJ: ${defaultStore.cnpj}
 Tel: ${defaultStore.phone}
+Resp. Técnico: ${defaultStore.tech_manager || 'W2 Suporte Técnico'} - ${defaultStore.tech_phone || '(16) 99965-4150'}
 ----------------------------------------
 *COMPROVANTE DE PAGAMENTO & GARANTIA*
 Recibo Nº: ${sale.receipt_number}
@@ -310,6 +314,14 @@ Garantia legal de ${defaultStore.warranty_days} dias para funcionamento a partir
             <p className="text-[10px] text-slate-500">
               A garantia não abrange danos decorrentes de acidentes, quedas, trincas na tela, oxidação por contato com água/líquidos, uso de carregadores incompatíveis ou violação de selos de segurança. A apresentação deste recibo é necessária para atendimento.
             </p>
+            <div className="pt-1 text-[10px] text-slate-500 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-1">
+              <span>
+                <strong>Responsável Técnico:</strong> {defaultStore.tech_manager || 'W2 Suporte Técnico'}
+              </span>
+              <span>
+                <strong>Tel/WhatsApp:</strong> {defaultStore.tech_phone || '(16) 99965-4150'} | <strong>E-mail:</strong> {defaultStore.tech_email || 'w2suporte@gmail.com'}
+              </span>
+            </div>
           </div>
 
           {/* Signatures */}

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getDb, queryAll, queryOne, saveDb } from './db.js';
+import { getDb, queryAll, queryOne, saveDb, resetOrRepairDb } from './db.js';
 import { validateCPF } from '../utils/formatters.js';
 
 export const apiRouter = Router();
@@ -11,39 +11,73 @@ apiRouter.get('/dashboard', async (req: Request, res: Response) => {
   try {
     const db = await getDb();
 
-    const devCountRow = queryOne<{ count: number; total_units: number }>(
-      db,
-      'SELECT COUNT(*) as count, COALESCE(SUM(stock_quantity), 0) as total_units FROM devices;'
-    );
-    const lowStockRow = queryOne<{ count: number }>(
-      db,
-      'SELECT COUNT(*) as count FROM devices WHERE stock_quantity <= min_stock;'
-    );
-    const clientCountRow = queryOne<{ count: number }>(
-      db,
-      'SELECT COUNT(*) as count FROM clients;'
-    );
-    const salesStatsRow = queryOne<{ count: number; total_revenue: number; total_cost: number }>(
-      db,
-      'SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total_revenue, COALESCE(SUM(total_cost), 0) as total_cost FROM sales;'
-    );
+    let devCountRow = { count: 0, total_units: 0 };
+    let lowStockRow = { count: 0 };
+    let clientCountRow = { count: 0 };
+    let salesStatsRow = { count: 0, total_revenue: 0, total_cost: 0 };
+    let recentSales: any[] = [];
+    let lowStockDevices: any[] = [];
 
-    const recentSales = queryAll(
-      db,
-      `SELECT s.*, c.name as client_name, c.cpf as client_cpf
-       FROM sales s
-       LEFT JOIN clients c ON s.client_id = c.id
-       ORDER BY s.created_at DESC
-       LIMIT 5;`
-    );
+    try {
+      devCountRow = queryOne<{ count: number; total_units: number }>(
+        db,
+        'SELECT COUNT(*) as count, COALESCE(SUM(stock_quantity), 0) as total_units FROM devices;'
+      ) || devCountRow;
+    } catch (e) {
+      console.warn('Dashboard query devices error:', e);
+    }
 
-    const lowStockDevices = queryAll(
-      db,
-      `SELECT * FROM devices
-       WHERE stock_quantity <= min_stock
-       ORDER BY stock_quantity ASC
-       LIMIT 8;`
-    );
+    try {
+      lowStockRow = queryOne<{ count: number }>(
+        db,
+        'SELECT COUNT(*) as count FROM devices WHERE stock_quantity <= min_stock;'
+      ) || lowStockRow;
+    } catch (e) {
+      console.warn('Dashboard query low stock count error:', e);
+    }
+
+    try {
+      clientCountRow = queryOne<{ count: number }>(
+        db,
+        'SELECT COUNT(*) as count FROM clients;'
+      ) || clientCountRow;
+    } catch (e) {
+      console.warn('Dashboard query clients error:', e);
+    }
+
+    try {
+      salesStatsRow = queryOne<{ count: number; total_revenue: number; total_cost: number }>(
+        db,
+        'SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total_revenue, COALESCE(SUM(total_cost), 0) as total_cost FROM sales;'
+      ) || salesStatsRow;
+    } catch (e) {
+      console.warn('Dashboard query sales stats error:', e);
+    }
+
+    try {
+      recentSales = queryAll(
+        db,
+        `SELECT s.*, c.name as client_name, c.cpf as client_cpf
+         FROM sales s
+         LEFT JOIN clients c ON s.client_id = c.id
+         ORDER BY s.created_at DESC
+         LIMIT 5;`
+      );
+    } catch (e) {
+      console.warn('Dashboard query recent sales error:', e);
+    }
+
+    try {
+      lowStockDevices = queryAll(
+        db,
+        `SELECT * FROM devices
+         WHERE stock_quantity <= min_stock
+         ORDER BY stock_quantity ASC
+         LIMIT 8;`
+      );
+    } catch (e) {
+      console.warn('Dashboard query low stock devices error:', e);
+    }
 
     const totalRevenue = salesStatsRow?.total_revenue || 0;
     const totalCost = salesStatsRow?.total_cost || 0;
@@ -61,8 +95,19 @@ apiRouter.get('/dashboard', async (req: Request, res: Response) => {
       lowStockDevices,
     });
   } catch (error: any) {
-    console.error('Error fetching dashboard:', error);
-    res.status(500).json({ error: 'Erro ao carregar dados do dashboard: ' + error.message });
+    console.error('Error fetching dashboard, returning safe fallback:', error);
+    res.json({
+      totalDevices: 0,
+      totalStockUnits: 0,
+      lowStockCount: 0,
+      totalClients: 0,
+      totalSalesCount: 0,
+      totalRevenue: 0,
+      totalProfit: 0,
+      recentSales: [],
+      lowStockDevices: [],
+      errorNotice: 'Banco de dados recuperado automaticamente com valores padrão.',
+    });
   }
 });
 
@@ -975,21 +1020,37 @@ apiRouter.get('/settings', async (req: Request, res: Response) => {
 apiRouter.put('/settings', async (req: Request, res: Response) => {
   try {
     const db = await getDb();
-    const { store_name, cnpj, phone, email, address, city, state, warranty_days } = req.body;
+    const {
+      store_name,
+      cnpj,
+      phone,
+      email,
+      address,
+      city,
+      state,
+      warranty_days,
+      tech_manager,
+      tech_phone,
+      tech_email,
+    } = req.body;
 
     db.run(
       `UPDATE store_settings
-       SET store_name = ?, cnpj = ?, phone = ?, email = ?, address = ?, city = ?, state = ?, warranty_days = ?
+       SET store_name = ?, cnpj = ?, phone = ?, email = ?, address = ?, city = ?, state = ?, warranty_days = ?,
+           tech_manager = ?, tech_phone = ?, tech_email = ?
        WHERE id = 1;`,
       [
         store_name || 'CellStore Vendas',
         cnpj || '',
-        phone || '',
-        email || '',
+        phone || '(16) 99965-4150',
+        email || 'w2suporte@gmail.com',
         address || '',
         city || '',
         state || '',
         parseInt(warranty_days, 10) || 90,
+        tech_manager || 'W2 Suporte Técnico',
+        tech_phone || '(16) 99965-4150',
+        tech_email || 'w2suporte@gmail.com',
       ]
     );
 
@@ -1000,5 +1061,49 @@ apiRouter.put('/settings', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error updating settings:', error);
     res.status(500).json({ error: 'Erro ao salvar configurações.' });
+  }
+});
+
+// ==========================================
+// DATABASE DIAGNOSTICS & SELF-HEALING
+// ==========================================
+apiRouter.get('/database/status', async (req: Request, res: Response) => {
+  try {
+    const db = await getDb();
+    const devCount = queryOne<{ count: number }>(db, 'SELECT COUNT(*) as count FROM devices;')?.count || 0;
+    const clientCount = queryOne<{ count: number }>(db, 'SELECT COUNT(*) as count FROM clients;')?.count || 0;
+    const saleCount = queryOne<{ count: number }>(db, 'SELECT COUNT(*) as count FROM sales;')?.count || 0;
+    const movementCount = queryOne<{ count: number }>(db, 'SELECT COUNT(*) as count FROM stock_movements;')?.count || 0;
+    const settings = queryOne(db, 'SELECT * FROM store_settings WHERE id = 1;');
+
+    res.json({
+      status: 'healthy',
+      engine: 'SQLite Relational Engine (sql.js / WASM)',
+      tables: {
+        devices: devCount,
+        clients: clientCount,
+        sales: saleCount,
+        stock_movements: movementCount,
+        store_settings: settings ? 1 : 0,
+      },
+      technicalManager: {
+        name: settings?.tech_manager || 'W2 Suporte Técnico',
+        email: settings?.tech_email || 'w2suporte@gmail.com',
+        phone: settings?.tech_phone || '(16) 99965-4150',
+      },
+    });
+  } catch (error: any) {
+    console.error('Database status error:', error);
+    res.status(500).json({ status: 'error', error: error.message });
+  }
+});
+
+apiRouter.post('/database/repair', async (req: Request, res: Response) => {
+  try {
+    const result = await resetOrRepairDb();
+    res.json(result);
+  } catch (error: any) {
+    console.error('Database repair error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
